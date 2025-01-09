@@ -1,4 +1,7 @@
 'use client';
+import Image from 'next/image';
+import icon_pokemon from './icon_pokemon.png';
+
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -99,7 +102,7 @@ export default function Home() {
   return (
     <div className="bg-red-500 min-h-screen">
       <header className="bg-red-500 text-white py-6">
-        <h1 className="text-5xl font-bold text-center">Pokédex</h1>
+        <h1 className="text-5xl font-bold text-center"> <Image src={icon_pokemon} alt="Icon Pokémon" width={150} height={150} /></h1>
       </header>
       <div className="max-w-7xl mx-auto px-4">
         <SearchFilters setFilters={setFilters} />
