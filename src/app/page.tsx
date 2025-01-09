@@ -1,101 +1,116 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import PokemonCard from '@/components/PokemonCard';
+import SearchFilters from '@/components/SearchFilters';
+
+const API_URL = 'https://nestjs-pokedex-api.vercel.app/pokemons';
+
+interface Pokemon {
+  id: number;
+  name: string;
+  image: string;
+  types: { name: string }[];
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({ name: '', typeId: '', limit: 50 });
+  const [offset, setOffset] = useState(0);
+  const [totalPokemon, setTotalPokemon] = useState(0); // Nombre total de Pokémon disponibles
+  const [hasMore, setHasMore] = useState(true); // Indicateur pour savoir s'il reste des Pokémon à charger
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Charger le nombre total de Pokémon disponibles dans l'API
+  const getTotalPokemon = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setTotalPokemon(response.data.total); // On récupère le nombre total de Pokémon
+    } catch (error) {
+      console.error('Erreur lors de la récupération du total de Pokémon :', error);
+    }
+  };
+
+  // Charger les Pokémon depuis l'API
+  const loadPokemon = async (isAppending = false) => {
+    if (!hasMore) return; // Ne rien faire si tous les Pokémon sont déjà chargés
+
+    setLoading(true);
+    try {
+      const response = await axios.get(API_URL, {
+        params: {
+          name: filters.name,
+          typeId: filters.typeId,
+          limit: filters.limit,
+          offset: offset,
+        },
+      });
+      const data = response.data;
+
+      // Vérifiez si nous avons atteint le nombre total de Pokémon
+      if (pokemonList.length + data.length >= totalPokemon) {
+        setHasMore(false); // Plus de Pokémon à charger
+      }
+
+      // Concaténer les nouveaux Pokémon à la liste existante
+      if (isAppending) {
+        setPokemonList((prev) => [...prev, ...data]);
+      } else {
+        setPokemonList(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des Pokémon :', error);
+    }
+    setLoading(false);
+  };
+
+  // Charger le nombre total de Pokémon au démarrage
+  useEffect(() => {
+    getTotalPokemon();
+  }, []);
+
+  // Charger les Pokémon au démarrage ou quand les filtres changent
+  useEffect(() => {
+    setPokemonList([]); // Réinitialiser la liste quand les filtres changent
+    setOffset(0); // Réinitialiser l'offset
+    setHasMore(true); // Réinitialiser l'indicateur de chargement
+    loadPokemon();
+  }, [filters]);
+
+  // Gestion du scroll infini
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100 &&
+        !loading &&
+        hasMore
+      ) {
+        setOffset((prevOffset) => prevOffset + filters.limit);
+        loadPokemon(true); // Charger plus de Pokémon
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [filters, offset, loading, hasMore]);
+
+  return (
+    <div className="bg-red-500 min-h-screen">
+      <header className="bg-red-500 text-white py-6">
+        <h1 className="text-5xl font-bold text-center">Pokédex</h1>
+      </header>
+      <div className="max-w-7xl mx-auto px-4">
+        <SearchFilters setFilters={setFilters} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
+          {pokemonList.map((pokemon) => (
+            <PokemonCard key={pokemon.id} pokemon={pokemon} />
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        {loading && <p className="text-white text-center mt-4">Chargement...</p>}
+        {!hasMore && <p className="text-white text-center mt-4">Tous les Pokémon ont été chargés !</p>}
+      </div>
     </div>
   );
 }
